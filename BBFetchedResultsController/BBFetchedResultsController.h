@@ -29,6 +29,15 @@
 
 - (NSInteger)sectionForSectionIndexTitle:(NSString *)title atIndex:(NSInteger)sectionIndex;
 
+typedef enum : NSInteger {
+	BBFetchedResultsChangeInsert = 1,
+	BBFetchedResultsChangeDelete,
+	BBFetchedResultsChangeMove,
+	BBFetchedResultsChangeUpdate,
+} BBFetchedResultsChangeType;
+
+NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType changeType);
+
 @end
 
 @protocol BBFetchedResultsSectionInfo
@@ -40,13 +49,6 @@
 @end
 
 @protocol BBFetchedResultsControllerDelegate <NSObject>
-
-typedef enum : NSInteger {
-	BBFetchedResultsChangeInsert = 1,
-	BBFetchedResultsChangeDelete,
-	BBFetchedResultsChangeMove,
-	BBFetchedResultsChangeUpdate,
-} BBFetchedResultsChangeType;
 
 @optional
 

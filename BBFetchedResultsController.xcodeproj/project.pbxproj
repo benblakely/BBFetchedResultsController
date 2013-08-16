@@ -42,10 +42,7 @@
 		B571A85317B6789C0020F6BE /* libKiwi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B571A85017B6789C0020F6BE /* libKiwi.a */; };
 		B571A85717B6790E0020F6BE /* BBFetchedResultsControllerSpec.m in Sources */ = {isa = PBXBuildFile; fileRef = B571A85617B6790E0020F6BE /* BBFetchedResultsControllerSpec.m */; };
 		B5C36E8D17BD0B1500F838AC /* BBFetchedResultsSection.m in Sources */ = {isa = PBXBuildFile; fileRef = B5C36E8C17BD0B1500F838AC /* BBFetchedResultsSection.m */; };
-		B5C36E9017BD0B8400F838AC /* BBFetchedResultsObjectInsertion.m in Sources */ = {isa = PBXBuildFile; fileRef = B5C36E8F17BD0B8400F838AC /* BBFetchedResultsObjectInsertion.m */; };
-		B5C36E9317BD0B9400F838AC /* BBFetchedResultsObjectDeletion.m in Sources */ = {isa = PBXBuildFile; fileRef = B5C36E9217BD0B9400F838AC /* BBFetchedResultsObjectDeletion.m */; };
-		B5C36E9617BD0BA900F838AC /* BBFetchedResultsObjectUpdate.m in Sources */ = {isa = PBXBuildFile; fileRef = B5C36E9517BD0BA900F838AC /* BBFetchedResultsObjectUpdate.m */; };
-		B5C36E9917BD0BBA00F838AC /* BBFetchedResultsObjectMove.m in Sources */ = {isa = PBXBuildFile; fileRef = B5C36E9817BD0BBA00F838AC /* BBFetchedResultsObjectMove.m */; };
+		B5C36E9917BD0BBA00F838AC /* BBFetchedResultsObjectChange.m in Sources */ = {isa = PBXBuildFile; fileRef = B5C36E9817BD0BBA00F838AC /* BBFetchedResultsObjectChange.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -195,14 +192,8 @@
 		B571A85617B6790E0020F6BE /* BBFetchedResultsControllerSpec.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsControllerSpec.m; sourceTree = "<group>"; };
 		B5C36E8B17BD0B1500F838AC /* BBFetchedResultsSection.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBFetchedResultsSection.h; sourceTree = "<group>"; };
 		B5C36E8C17BD0B1500F838AC /* BBFetchedResultsSection.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsSection.m; sourceTree = "<group>"; };
-		B5C36E8E17BD0B8400F838AC /* BBFetchedResultsObjectInsertion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBFetchedResultsObjectInsertion.h; sourceTree = "<group>"; };
-		B5C36E8F17BD0B8400F838AC /* BBFetchedResultsObjectInsertion.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsObjectInsertion.m; sourceTree = "<group>"; };
-		B5C36E9117BD0B9400F838AC /* BBFetchedResultsObjectDeletion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBFetchedResultsObjectDeletion.h; sourceTree = "<group>"; };
-		B5C36E9217BD0B9400F838AC /* BBFetchedResultsObjectDeletion.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsObjectDeletion.m; sourceTree = "<group>"; };
-		B5C36E9417BD0BA900F838AC /* BBFetchedResultsObjectUpdate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBFetchedResultsObjectUpdate.h; sourceTree = "<group>"; };
-		B5C36E9517BD0BA900F838AC /* BBFetchedResultsObjectUpdate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsObjectUpdate.m; sourceTree = "<group>"; };
-		B5C36E9717BD0BBA00F838AC /* BBFetchedResultsObjectMove.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBFetchedResultsObjectMove.h; sourceTree = "<group>"; };
-		B5C36E9817BD0BBA00F838AC /* BBFetchedResultsObjectMove.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsObjectMove.m; sourceTree = "<group>"; };
+		B5C36E9717BD0BBA00F838AC /* BBFetchedResultsObjectChange.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBFetchedResultsObjectChange.h; sourceTree = "<group>"; };
+		B5C36E9817BD0BBA00F838AC /* BBFetchedResultsObjectChange.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBFetchedResultsObjectChange.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -267,14 +258,8 @@
 			children = (
 				B571A72717B6615F0020F6BE /* BBFetchedResultsController.h */,
 				B571A72917B6615F0020F6BE /* BBFetchedResultsController.m */,
-				B5C36E9717BD0BBA00F838AC /* BBFetchedResultsObjectMove.h */,
-				B5C36E9817BD0BBA00F838AC /* BBFetchedResultsObjectMove.m */,
-				B5C36E9417BD0BA900F838AC /* BBFetchedResultsObjectUpdate.h */,
-				B5C36E9517BD0BA900F838AC /* BBFetchedResultsObjectUpdate.m */,
-				B5C36E9117BD0B9400F838AC /* BBFetchedResultsObjectDeletion.h */,
-				B5C36E9217BD0B9400F838AC /* BBFetchedResultsObjectDeletion.m */,
-				B5C36E8E17BD0B8400F838AC /* BBFetchedResultsObjectInsertion.h */,
-				B5C36E8F17BD0B8400F838AC /* BBFetchedResultsObjectInsertion.m */,
+				B5C36E9717BD0BBA00F838AC /* BBFetchedResultsObjectChange.h */,
+				B5C36E9817BD0BBA00F838AC /* BBFetchedResultsObjectChange.m */,
 				B5C36E8B17BD0B1500F838AC /* BBFetchedResultsSection.h */,
 				B5C36E8C17BD0B1500F838AC /* BBFetchedResultsSection.m */,
 				B571A74C17B664300020F6BE /* BBFetchedResultsIndexPath.h */,
@@ -580,10 +565,7 @@
 				B571A72A17B6615F0020F6BE /* BBFetchedResultsController.m in Sources */,
 				B571A74E17B664300020F6BE /* BBFetchedResultsIndexPath.m in Sources */,
 				B5C36E8D17BD0B1500F838AC /* BBFetchedResultsSection.m in Sources */,
-				B5C36E9017BD0B8400F838AC /* BBFetchedResultsObjectInsertion.m in Sources */,
-				B5C36E9317BD0B9400F838AC /* BBFetchedResultsObjectDeletion.m in Sources */,
-				B5C36E9617BD0BA900F838AC /* BBFetchedResultsObjectUpdate.m in Sources */,
-				B5C36E9917BD0BBA00F838AC /* BBFetchedResultsObjectMove.m in Sources */,
+				B5C36E9917BD0BBA00F838AC /* BBFetchedResultsObjectChange.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

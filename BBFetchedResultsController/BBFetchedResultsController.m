@@ -3,10 +3,7 @@
 
 #import "BBFetchedResultsController.h"
 #import "BBFetchedResultsSection.h"
-#import "BBFetchedResultsObjectInsertion.h"
-#import "BBFetchedResultsObjectDeletion.h"
-#import "BBFetchedResultsObjectMove.h"
-#import "BBFetchedResultsObjectUpdate.h"
+#import "BBFetchedResultsObjectChange.h"
 
 @interface BBFetchedResultsController ()
 
@@ -207,6 +204,19 @@
     return (!sectionName && !name) || [sectionName isEqual:name];
 }
 
+NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType changeType) {
+    switch (changeType) {
+        case BBFetchedResultsChangeDelete:
+            return @"BBFetchedResultsChangeDelete";
+        case BBFetchedResultsChangeInsert:
+            return @"BBFetchedResultsChangeInsert";
+        case BBFetchedResultsChangeMove:
+            return @"BBFetchedResultsChangeMove";
+        case BBFetchedResultsChangeUpdate:
+            return @"BBFetchedResultsChangeUpdate";
+    }
+}
+
 #pragma mark - Notification handlers
 
 - (void)contextDidSave:(NSNotification *)notification {
@@ -263,7 +273,7 @@
             
             BOOL isInserted = !priorIndexPath;
             if (isInserted) {
-                [objectInsertions addObject:[BBFetchedResultsObjectInsertion withObject:object indexPath:indexPath]];
+                [objectInsertions addObject:[BBFetchedResultsObjectChange insertionWithObject:object indexPath:indexPath]];
                 return;
             }
                         
@@ -272,12 +282,12 @@
             if (hasMovedFromDeletedSection && hasMovedToInsertedSection) return;
             
             if (hasMovedFromDeletedSection) {
-                [objectInsertions addObject:[BBFetchedResultsObjectInsertion withObject:object indexPath:indexPath]];
+                [objectInsertions addObject:[BBFetchedResultsObjectChange insertionWithObject:object indexPath:indexPath]];
                 return;
             }
             
             if (hasMovedToInsertedSection) {
-                [objectDeletions addObject:[BBFetchedResultsObjectDeletion withObject:object indexPath:priorIndexPath]];
+                [objectDeletions addObject:[BBFetchedResultsObjectChange deletionWithObject:object priorIndexPath:priorIndexPath]];
                 return;
             }
             
@@ -285,14 +295,14 @@
             
             BOOL hasMovedSections = ![self sectionName:[section name] equalsName:[priorSection name]];
             if (hasMovedSections) {
-                [objectMoves addObject:[BBFetchedResultsObjectMove withObject:object sourceIndexPath:priorIndexPath destinationIndexPath:indexPath]];
+                [objectMoves addObject:[BBFetchedResultsObjectChange moveWithObject:object priorIndexPath:priorIndexPath indexPath:indexPath]];
                 return;
             }
             
             BOOL hasMovedWithinSection = [priorIndexPath row] != [indexPath row];
             if (!hasMovedWithinSection) return;
             
-            [objectMoves addObject:[BBFetchedResultsObjectMove withObject:object sourceIndexPath:priorIndexPath destinationIndexPath:indexPath]];
+            [objectMoves addObject:[BBFetchedResultsObjectChange moveWithObject:object priorIndexPath:priorIndexPath indexPath:indexPath]];
         }];
     }];
     
@@ -303,15 +313,15 @@
             if ([deletedSections containsIndex:sectionIndex]) return;
             
             BBFetchedResultsIndexPath *priorIndexPath = [BBFetchedResultsIndexPath indexPathForRow:rowIndex inSection:sectionIndex];
-            [objectDeletions addObject:[BBFetchedResultsObjectDeletion withObject:object indexPath:priorIndexPath]];
+            [objectDeletions addObject:[BBFetchedResultsObjectChange deletionWithObject:object priorIndexPath:priorIndexPath]];
         }];
     }];
     
     // Remove unnecessary moves (i.e. those that are implied by other insertions, deletions and moves).
     NSMutableSet *impliedMoves = [NSMutableSet new];
-    for (BBFetchedResultsObjectMove *move in objectMoves) {
-        BBFetchedResultsIndexPath *indexPath = [move destinationIndexPath];
-        BBFetchedResultsIndexPath *priorIndexPath = [move sourceIndexPath];
+    for (BBFetchedResultsObjectChange *move in objectMoves) {
+        BBFetchedResultsIndexPath *indexPath = [move indexPath];
+        BBFetchedResultsIndexPath *priorIndexPath = [move priorIndexPath];
         BBFetchedResultsSection *section = [sections objectAtIndex:[indexPath section]];
         BBFetchedResultsSection *priorSection = [priorSections objectAtIndex:[priorIndexPath section]];
         
@@ -326,7 +336,7 @@
         
         NSUInteger insertionsAboveCount = 0;
         if ([indexPath row] > 0) {
-            for (BBFetchedResultsObjectInsertion *insertion in objectInsertions) {
+            for (BBFetchedResultsObjectChange *insertion in objectInsertions) {
                 if ([[insertion indexPath] section] != [indexPath section]) continue;
                 if ([[insertion indexPath] row] > [indexPath row]) continue;
                 insertionsAboveCount++;
@@ -335,7 +345,7 @@
         
         NSUInteger deletionsAboveCount = 0;
         if ([priorIndexPath row] > 0) {
-            for (BBFetchedResultsObjectDeletion *deletion in objectDeletions) {
+            for (BBFetchedResultsObjectChange *deletion in objectDeletions) {
                 if ([[deletion indexPath] section] != [priorIndexPath section]) continue;
                 if ([[deletion indexPath] row] > [priorIndexPath row]) continue;
                 deletionsAboveCount++;
@@ -344,13 +354,13 @@
         
         NSUInteger movesFromAboveCount = 0;
         NSUInteger movesToAboveCount = 0;
-        for (BBFetchedResultsObjectMove *siblingMove in objectMoves) {
+        for (BBFetchedResultsObjectChange *siblingMove in objectMoves) {
             if (siblingMove == move) continue;
             
-            BOOL hasSiblingMovedSections = [[siblingMove sourceIndexPath] section] != [[siblingMove destinationIndexPath] section];
+            BOOL hasSiblingMovedSections = [[siblingMove priorIndexPath] section] != [[siblingMove indexPath] section];
             if (hasSiblingMovedSections) {
-                BOOL movedFromAbove = [[siblingMove sourceIndexPath] section] == [[move sourceIndexPath] section] && [[siblingMove sourceIndexPath] row] < [[move sourceIndexPath] row];
-                BOOL movedToAbove = [[siblingMove destinationIndexPath] section] == [[move destinationIndexPath] section] && [[siblingMove destinationIndexPath] row] < [[move destinationIndexPath] row];
+                BOOL movedFromAbove = [[siblingMove priorIndexPath] section] == [[move priorIndexPath] section] && [[siblingMove priorIndexPath] row] < [[move priorIndexPath] row];
+                BOOL movedToAbove = [[siblingMove indexPath] section] == [[move indexPath] section] && [[siblingMove indexPath] row] < [[move indexPath] row];
                 if (movedFromAbove && movedToAbove) continue;
                 
                 if (movedFromAbove) {
@@ -361,10 +371,10 @@
                 continue;
             }
             
-            if ([[siblingMove destinationIndexPath] section] != [[move destinationIndexPath] section]) continue;
+            if ([[siblingMove indexPath] section] != [[move indexPath] section]) continue;
             
-            BOOL movedFromAbove = [[siblingMove sourceIndexPath] row] < [[move sourceIndexPath] row];
-            BOOL movedToAbove = [[siblingMove destinationIndexPath] row] < [[move destinationIndexPath] row];
+            BOOL movedFromAbove = [[siblingMove priorIndexPath] row] < [[move priorIndexPath] row];
+            BOOL movedToAbove = [[siblingMove indexPath] row] < [[move indexPath] row];
             if (movedFromAbove && movedToAbove) continue;
             
             if (movedFromAbove) {
@@ -397,7 +407,7 @@
             if ([insertedSections containsIndex:[indexPath section]]) continue;
             BBFetchedResultsIndexPath *priorIndexPath = [self indexPathForObjectID:[updatedObject objectID] objectIDs:priorObjectIDs sections:priorSections];
             if (priorIndexPath && [deletedSections containsIndex:[priorIndexPath section]]) continue;
-            [objectUpdates addObject:[BBFetchedResultsObjectUpdate withObject:updatedObject indexPath:indexPath]];
+            [objectUpdates addObject:[BBFetchedResultsObjectChange updateWithObject:updatedObject indexPath:indexPath]];
             [alreadyHandledObjects addObject:updatedObject];
             continue;
         }
@@ -419,7 +429,7 @@
                 if ([insertedSections containsIndex:[indexPath section]]) return;
                 BBFetchedResultsIndexPath *priorIndexPath = [self indexPathForObjectID:[object objectID] objectIDs:priorObjectIDs sections:priorSections];
                 if (priorIndexPath && [deletedSections containsIndex:[priorIndexPath section]]) return;
-                [objectUpdates addObject:[BBFetchedResultsObjectUpdate withObject:object indexPath:indexPath]];
+                [objectUpdates addObject:[BBFetchedResultsObjectChange updateWithObject:object indexPath:indexPath]];
                 [alreadyHandledObjects addObject:object];
                 *stopSection = YES;
             }];
@@ -456,17 +466,17 @@
     }
 
     if ([[self delegate] respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)]) {
-        for (BBFetchedResultsObjectDeletion *deletion in objectDeletions) {
-            [[self delegate] controller:self didChangeObject:[deletion object] atIndexPath:[deletion indexPath] forChangeType:BBFetchedResultsChangeDelete newIndexPath:nil];
+        for (BBFetchedResultsObjectChange *deletion in objectDeletions) {
+            [[self delegate] controller:self didChangeObject:[deletion object] atIndexPath:[deletion priorIndexPath] forChangeType:BBFetchedResultsChangeDelete newIndexPath:nil];
         }
-        for (BBFetchedResultsObjectInsertion *insertion in objectInsertions) {
+        for (BBFetchedResultsObjectChange *insertion in objectInsertions) {
             [[self delegate] controller:self didChangeObject:[insertion object] atIndexPath:nil forChangeType:BBFetchedResultsChangeInsert newIndexPath:[insertion indexPath]];
         }
-        for (BBFetchedResultsObjectUpdate *update in objectUpdates) {
+        for (BBFetchedResultsObjectChange *update in objectUpdates) {
             [[self delegate] controller:self didChangeObject:[update object] atIndexPath:[update indexPath] forChangeType:BBFetchedResultsChangeUpdate newIndexPath:nil];
         }
-        for (BBFetchedResultsObjectMove *move in objectMoves) {
-            [[self delegate] controller:self didChangeObject:[move object] atIndexPath:[move sourceIndexPath] forChangeType:BBFetchedResultsChangeMove newIndexPath:[move destinationIndexPath]];
+        for (BBFetchedResultsObjectChange *move in objectMoves) {
+            [[self delegate] controller:self didChangeObject:[move object] atIndexPath:[move priorIndexPath] forChangeType:BBFetchedResultsChangeMove newIndexPath:[move indexPath]];
         }
     }
 
