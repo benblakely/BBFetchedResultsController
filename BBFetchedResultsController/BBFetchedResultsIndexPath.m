@@ -31,7 +31,7 @@
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"%@ section:%d row:%d", [super description], [self section], [self row]];
+    return [NSString stringWithFormat:@"%@ section:%ld row:%ld", [super description], (unsigned long)[self section], (unsigned long)[self row]];
 }
 
 @end
