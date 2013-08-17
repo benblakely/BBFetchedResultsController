@@ -13,6 +13,7 @@ SPEC_BEGIN(BBFetchedResultsControllerSpec)
 
 describe(@"BBFetchedResultsController", ^{
     NSURL *directory = [[[NSFileManager defaultManager] URLsForDirectory:NSLibraryDirectory inDomains:NSUserDomainMask] lastObject];
+    [[NSFileManager defaultManager] createDirectoryAtURL:directory withIntermediateDirectories:YES attributes:nil error:nil];
     NSURL *storeURL = [directory URLByAppendingPathComponent:@"BBFetchedResultsController.sqlite"];
     __block NSManagedObjectContext *managedObjectContext;
     
