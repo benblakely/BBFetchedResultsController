@@ -11,12 +11,13 @@
 
 @property (nonatomic, readonly) NSFetchRequest *fetchRequest;
 @property (nonatomic, readonly) NSManagedObjectContext *managedObjectContext;
-@property (nonatomic, readonly) NSString *sectionNameKeyPath; // If specified, must point to a persisent attribute.
+@property (nonatomic, readonly) NSString *sectionNameKeyPath;
 @property (nonatomic, weak) id<BBFetchedResultsControllerDelegate> delegate;
 @property (nonatomic, readonly) NSArray *fetchedObjects;
 @property (nonatomic, readonly) NSArray *sectionIndexTitles;
 @property (nonatomic, readonly) NSArray *sections;
 
+// If specified, sectionNameKeyPath must point to a persisent attribute.
 - (id)initWithFetchRequest:(NSFetchRequest *)fetchRequest managedObjectContext:(NSManagedObjectContext *)context sectionNameKeyPath:(NSString *)sectionNameKeyPath;
 
 - (BOOL)performFetch:(NSError **)error;
