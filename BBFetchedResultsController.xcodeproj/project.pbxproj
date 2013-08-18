@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		B51C1A2317BEF7DA00384F12 /* DataModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = B51C1A2117BEF7DA00384F12 /* DataModel.xcdatamodeld */; };
 		B51C1A2417BEF7DA00384F12 /* DataModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = B51C1A2117BEF7DA00384F12 /* DataModel.xcdatamodeld */; };
+		B51C1A2917C1073A00384F12 /* BBNonFineGrainedDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B51C1A2817C1073A00384F12 /* BBNonFineGrainedDelegate.m */; };
+		B51C1A2A17C1073A00384F12 /* BBNonFineGrainedDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B51C1A2817C1073A00384F12 /* BBNonFineGrainedDelegate.m */; };
 		B53850EE17BE6B0400FCFC14 /* libKiwi-OSX.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B53850E717BE6B0400FCFC14 /* libKiwi-OSX.a */; };
 		B53850EF17BE6B0400FCFC14 /* libKiwi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B53850E817BE6B0400FCFC14 /* libKiwi.a */; };
 		B53850F817BE6BF600FCFC14 /* BBFetchedResultsControllerSpec.m in Sources */ = {isa = PBXBuildFile; fileRef = B53850F717BE6BF600FCFC14 /* BBFetchedResultsControllerSpec.m */; };
@@ -84,6 +86,8 @@
 
 /* Begin PBXFileReference section */
 		B51C1A2217BEF7DA00384F12 /* Demo.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Demo.xcdatamodel; sourceTree = "<group>"; };
+		B51C1A2717C1073A00384F12 /* BBNonFineGrainedDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BBNonFineGrainedDelegate.h; sourceTree = "<group>"; };
+		B51C1A2817C1073A00384F12 /* BBNonFineGrainedDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BBNonFineGrainedDelegate.m; sourceTree = "<group>"; };
 		B538508B17BE6B0400FCFC14 /* Kiwi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Kiwi.h; sourceTree = "<group>"; };
 		B538508C17BE6B0400FCFC14 /* KiwiBlockMacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KiwiBlockMacros.h; sourceTree = "<group>"; };
 		B538508D17BE6B0400FCFC14 /* KiwiConfiguration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KiwiConfiguration.h; sourceTree = "<group>"; };
@@ -494,6 +498,8 @@
 			isa = PBXGroup;
 			children = (
 				B53850F717BE6BF600FCFC14 /* BBFetchedResultsControllerSpec.m */,
+				B51C1A2717C1073A00384F12 /* BBNonFineGrainedDelegate.h */,
+				B51C1A2817C1073A00384F12 /* BBNonFineGrainedDelegate.m */,
 				B51C1A2117BEF7DA00384F12 /* DataModel.xcdatamodeld */,
 				B53850FA17BE6C0A00FCFC14 /* Model */,
 			);
@@ -687,6 +693,7 @@
 				B538511017BE6C0A00FCFC14 /* BBPerson.m in Sources */,
 				B538511217BE6C0A00FCFC14 /* BBToDo.m in Sources */,
 				B51C1A2317BEF7DA00384F12 /* DataModel.xcdatamodeld in Sources */,
+				B51C1A2917C1073A00384F12 /* BBNonFineGrainedDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -713,6 +720,7 @@
 				B538511117BE6C0A00FCFC14 /* BBPerson.m in Sources */,
 				B538511317BE6C0A00FCFC14 /* BBToDo.m in Sources */,
 				B51C1A2417BEF7DA00384F12 /* DataModel.xcdatamodeld in Sources */,
+				B51C1A2A17C1073A00384F12 /* BBNonFineGrainedDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

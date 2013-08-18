@@ -2,6 +2,7 @@
 #import <CoreData/CoreData.h>
 #import "BBFetchedResultsController.h"
 #import "BBEntities.h"
+#import "BBNonFineGrainedDelegate.h"
 
 @interface BBFetchedResultsController ()
 
@@ -98,100 +99,133 @@ describe(@"BBFetchedResultsController", ^{
             [request setFetchBatchSize:10];
             
             controller = [[BBFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:managedObjectContext sectionNameKeyPath:@"list.name"];
-            delegate = [KWMock mockForProtocol:@protocol(BBFetchedResultsControllerDelegate)];
-            [controller setDelegate:delegate];
-            [[theValue([controller performFetch:nil]) should] beTrue];
         });
         
-        it(@"should remove section when deleting all items in section", ^{
-            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
-            [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(3), theValue(BBFetchedResultsChangeDelete), nil];
-            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+        context(@"Wants fine-grained callbacks", ^{
+            beforeEach(^{
+                delegate = [KWMock mockForProtocol:@protocol(BBFetchedResultsControllerDelegate)];
+                [controller setDelegate:delegate];
+                [[theValue([controller performFetch:nil]) should] beTrue];
+            });
             
-            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
-            [request setPredicate:[NSPredicate predicateWithFormat:@"list.name == 'Vacation'"]];
-            NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
-            for (BBToDo *toDo in toDos) {
-                [managedObjectContext deleteObject:toDo];
-            }
-            [managedObjectContext save:nil];
-        });        
+            it(@"should remove section when deleting all items in section", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(3), theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [request setPredicate:[NSPredicate predicateWithFormat:@"list.name == 'Vacation'"]];
+                NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
+                for (BBToDo *toDo in toDos) {
+                    [managedObjectContext deleteObject:toDo];
+                }
+                [managedObjectContext save:nil];
+            });        
 
-        it(@"should remove section when all items in section no longer meet predicate", ^{
-            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
-            [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(3), theValue(BBFetchedResultsChangeDelete), nil];
-            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
-            
-            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
-            [request setPredicate:[NSPredicate predicateWithFormat:@"list.name == 'Vacation'"]];
-            NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
-            for (BBToDo *toDo in toDos) {
-                [toDo setCompletedValue:YES];
-            }
-            [managedObjectContext save:nil];
-        });
+            it(@"should remove section when all items in section no longer meet predicate", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(3), theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [request setPredicate:[NSPredicate predicateWithFormat:@"list.name == 'Vacation'"]];
+                NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
+                for (BBToDo *toDo in toDos) {
+                    [toDo setCompletedValue:YES];
+                }
+                [managedObjectContext save:nil];
+            });
 
-        it(@"should insert section when adding new item without section name", ^{
-            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
-            [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(0), theValue(BBFetchedResultsChangeInsert), nil];
-            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            it(@"should insert section when adding new item without section name", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(0), theValue(BBFetchedResultsChangeInsert), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                BBToDo *toDo = [BBToDo insertInManagedObjectContext:managedObjectContext];
+                [toDo setName:@"Make breakfast"];
+                [managedObjectContext save:nil];
+            });
             
-            BBToDo *toDo = [BBToDo insertInManagedObjectContext:managedObjectContext];
-            [toDo setName:@"Make breakfast"];
-            [managedObjectContext save:nil];
+            it(@"should move object when switching section", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:6 inSection:2], theValue(BBFetchedResultsChangeMove), [BBFetchedResultsIndexPath indexPathForRow:2 inSection:3], nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                NSFetchRequest *listRequest = [NSFetchRequest fetchRequestWithEntityName:[BBList entityName]];
+                [listRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Vacation'"]];
+                [listRequest setFetchLimit:1];
+                BBList *list = [[managedObjectContext executeFetchRequest:listRequest error:nil] lastObject];
+                
+                NSFetchRequest *toDoRequest = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [toDoRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Renew membership'"]];
+                [toDoRequest setFetchLimit:1];
+                BBToDo *toDo = [[managedObjectContext executeFetchRequest:toDoRequest error:nil] lastObject];
+                [toDo setList:list];
+                
+                [managedObjectContext save:nil];
+            });
+
+            it(@"should move object within section", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:1 inSection:2], theValue(BBFetchedResultsChangeMove), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:2], nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+                [request setFetchLimit:1];
+                BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+                [toDo setName:@"Lease car"];
+                
+                [managedObjectContext save:nil];
+            });
+
+            it(@"should insert object when moved from deleted section", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(0), theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [KWNull null], theValue(BBFetchedResultsChangeInsert), [BBFetchedResultsIndexPath indexPathForRow:1 inSection:0], nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                NSFetchRequest *listRequest = [NSFetchRequest fetchRequestWithEntityName:[BBList entityName]];
+                [listRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Party'"]];
+                [listRequest setFetchLimit:1];
+                BBList *list = [[managedObjectContext executeFetchRequest:listRequest error:nil] lastObject];
+                            
+                NSFetchRequest *toDoRequest = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [toDoRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Get milk'"]];
+                [toDoRequest setFetchLimit:1];
+                BBToDo *toDo = [[managedObjectContext executeFetchRequest:toDoRequest error:nil] lastObject];
+                [toDo setList:list];
+                
+                [managedObjectContext save:nil];
+            });
         });
         
-        it(@"should move object when switching section", ^{
-            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
-            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:6 inSection:2], theValue(BBFetchedResultsChangeMove), [BBFetchedResultsIndexPath indexPathForRow:2 inSection:3], nil];
-            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+        context(@"Does not want fine-grained callbacks", ^{
+            beforeEach(^{
+                delegate = [BBNonFineGrainedDelegate mock];
+                [controller setDelegate:delegate];
+                [[theValue([controller performFetch:nil]) should] beTrue];
+            });
             
-            NSFetchRequest *listRequest = [NSFetchRequest fetchRequestWithEntityName:[BBList entityName]];
-            [listRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Vacation'"]];
-            [listRequest setFetchLimit:1];
-            BBList *list = [[managedObjectContext executeFetchRequest:listRequest error:nil] lastObject];
-            
-            NSFetchRequest *toDoRequest = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
-            [toDoRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Renew membership'"]];
-            [toDoRequest setFetchLimit:1];
-            BBToDo *toDo = [[managedObjectContext executeFetchRequest:toDoRequest error:nil] lastObject];
-            [toDo setList:list];
-            
-            [managedObjectContext save:nil];
-        });
-
-        it(@"should move object within section", ^{
-            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
-            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:1 inSection:2], theValue(BBFetchedResultsChangeMove), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:2], nil];
-            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
-            
-            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
-            [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
-            [request setFetchLimit:1];
-            BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
-            [toDo setName:@"Lease car"];
-            
-            [managedObjectContext save:nil];
-        });
-
-        it(@"should insert object when moved from deleted section", ^{
-            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
-            [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(0), theValue(BBFetchedResultsChangeDelete), nil];
-            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [KWNull null], theValue(BBFetchedResultsChangeInsert), [BBFetchedResultsIndexPath indexPathForRow:1 inSection:0], nil];
-            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
-            
-            NSFetchRequest *listRequest = [NSFetchRequest fetchRequestWithEntityName:[BBList entityName]];
-            [listRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Party'"]];
-            [listRequest setFetchLimit:1];
-            BBList *list = [[managedObjectContext executeFetchRequest:listRequest error:nil] lastObject];
-                        
-            NSFetchRequest *toDoRequest = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
-            [toDoRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Get milk'"]];
-            [toDoRequest setFetchLimit:1];
-            BBToDo *toDo = [[managedObjectContext executeFetchRequest:toDoRequest error:nil] lastObject];
-            [toDo setList:list];
-            
-            [managedObjectContext save:nil];
+            it(@"should not receive fine-grained callbacks", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                [[delegate shouldNot] receive:@selector(controller:didChangeSection:atIndex:forChangeType:)];
+                [[delegate shouldNot] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)];
+                
+                NSFetchRequest *listRequest = [NSFetchRequest fetchRequestWithEntityName:[BBList entityName]];
+                [listRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Party'"]];
+                [listRequest setFetchLimit:1];
+                BBList *list = [[managedObjectContext executeFetchRequest:listRequest error:nil] lastObject];
+                
+                NSFetchRequest *toDoRequest = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [toDoRequest setPredicate:[NSPredicate predicateWithFormat:@"name == 'Get milk'"]];
+                [toDoRequest setFetchLimit:1];
+                BBToDo *toDo = [[managedObjectContext executeFetchRequest:toDoRequest error:nil] lastObject];
+                [toDo setList:list];
+                
+                [managedObjectContext save:nil];
+            });
         });
     });
     
