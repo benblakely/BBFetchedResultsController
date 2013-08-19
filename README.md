@@ -9,6 +9,7 @@ Apple’s NSFetchedResultsController is great, but has some shortcomings:
 - Reports conflicting section/object updates when objects move to newly-created sections or move from newly deleted-sections.
 - Implicit object moves are unnecessarily reported (e.g. deleting one object and changing the ordinal on all subsequent objects turn up as a single row deletion and multiple moves as opposed to updates).
 - Changes to relationship objects specified in relationshipKeypathsForPrefetching aren’t detected.
+- Changing the sort descriptors and/or predicate and then performing a fetch doesn’t result in delegate calls.
 - Not Mac compatible.
 
 BBFetchedResultsController solves all of these problems.
@@ -30,6 +31,10 @@ Delegate callbacks don’t conflict with UITableView’s fine-grained insertion,
 ### Ignores Implicit Object Moves
 
 Only actual, explicit object moves are interpreted as moves. For example, if an object is moved from the first position in a section to the last and the other objects in the section also happen to be updated, the delegate will be notified that there was one move and the others will count as updates (as opposed to all being reported as moves).
+
+### Reports Changes from Updating Sort Descriptors and Predicate
+
+After making changes to the fetch request’s sort descriptors or predicate, calling `performFetch:` will detect how the sections and objects have been affected and report those changes to the delegate.
 
 ### Detects Changes to Prefetched Relationships
 

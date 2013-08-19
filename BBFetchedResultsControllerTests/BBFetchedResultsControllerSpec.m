@@ -198,6 +198,18 @@ describe(@"BBFetchedResultsController", ^{
                 
                 [managedObjectContext save:nil];
             });
+            
+            it(@"should remove section after changing predicate", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(3), theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                NSFetchRequest *request = [controller fetchRequest];
+                NSPredicate *existingPredicate = [request predicate];
+                NSPredicate *filterOutVacactionPredicate = [NSPredicate predicateWithFormat:@"list.name != 'Vacation'"];
+                [request setPredicate:[NSCompoundPredicate andPredicateWithSubpredicates:@[existingPredicate, filterOutVacactionPredicate]]];
+                [controller performFetch:nil];
+            });
         });
         
         context(@"Does not want fine-grained callbacks", ^{

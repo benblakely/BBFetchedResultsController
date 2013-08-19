@@ -37,6 +37,10 @@
 }
 
 - (BOOL)performFetch:(NSError **)error {
+    if ([self fetchedObjects]) {
+        return [self updateDataWithUpdatedObjects:nil error:error];
+    }
+    
     NSArray *sections;
     NSArray *fetchedObjects;
     NSArray *objectIDs;
@@ -217,9 +221,12 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
     }
 }
 
-#pragma mark - Notification handlers
-
 - (void)contextDidSave:(NSNotification *)notification {
+    NSSet *updatedObjects = [[notification userInfo] objectForKey:NSUpdatedObjectsKey];
+    [self updateDataWithUpdatedObjects:updatedObjects error:nil];
+}
+
+- (BOOL)updateDataWithUpdatedObjects:(NSSet *)updatedObjects error:(NSError **)outError {
     NSArray *sections = nil;
     NSArray *fetchedObjects = nil;
     NSArray *objectIDs = nil;
@@ -227,7 +234,8 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
     BOOL succeeded = [self calculateSections:&sections fetchedObjects:&fetchedObjects objectIDs:&objectIDs error:&error];
     if (!succeeded) {
         NSLog(@"Failed to fetch after context save: %@", error);
-        return;
+        if (outError) *outError = error;
+        return NO;
     }
     
     if (![[self delegate] respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)] &&
@@ -241,7 +249,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         [self setObjectIDs:objectIDs];
         if ([[self delegate] respondsToSelector:@selector(controllerDidChangeContent:)])
             [[self delegate] controllerDidChangeContent:self];
-        return;
+        return YES;
     }
     
     NSArray *priorSections = [self sections];
@@ -253,7 +261,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         if (existingSection) return;
         [insertedSections addIndex:index];
     }];
-
+    
     NSMutableIndexSet *deletedSections = [NSMutableIndexSet new];
     [priorSections enumerateObjectsUsingBlock:^(BBFetchedResultsSection *existingSection, NSUInteger index, BOOL *stop) {
         BBFetchedResultsSection *section = [self sectionForName:[existingSection name] sections:sections];
@@ -278,7 +286,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
                 [objectInsertions addObject:[BBFetchedResultsObjectChange insertionWithObject:object indexPath:indexPath]];
                 return;
             }
-                        
+            
             BOOL hasMovedFromDeletedSection = [deletedSections containsIndex:[priorIndexPath section]];
             BOOL hasMovedToInsertedSection = [insertedSections containsIndex:sectionIndex];
             if (hasMovedFromDeletedSection && hasMovedToInsertedSection) return;
@@ -399,7 +407,6 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
     [alreadyHandledObjects unionSet:[objectMoves valueForKeyPath:@"object"]];
     
     NSMutableSet *objectUpdates = [[NSMutableSet alloc] init];
-    NSSet *updatedObjects = [[notification userInfo] objectForKey:NSUpdatedObjectsKey];
     NSArray *relationshipKeyPaths = [[self fetchRequest] relationshipKeyPathsForPrefetching];
     for (NSManagedObject *updatedObject in updatedObjects) {
         if ([alreadyHandledObjects containsObject:updatedObject]) continue;
@@ -413,7 +420,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
             [alreadyHandledObjects addObject:updatedObject];
             continue;
         }
-                
+        
         if ([relationshipKeyPaths count] == 0) continue;
         
         [sections enumerateObjectsUsingBlock:^(BBFetchedResultsSection *section, NSUInteger sectionIndex, BOOL *stopSection) {
@@ -435,7 +442,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
                 [alreadyHandledObjects addObject:object];
                 *stopSection = YES;
             }];
-        }];        
+        }];
     }
     
     if ([insertedSections count] == 0 &&
@@ -444,7 +451,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         [objectMoves count] == 0 &&
         [objectDeletions count] == 0 &&
         [objectUpdates count] == 0) {
-        return;
+        return YES;
     }
     
     if ([[self delegate] respondsToSelector:@selector(controllerWillChangeContent:)]) {
@@ -466,7 +473,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
             [[self delegate] controller:self didChangeSection:section atIndex:idx forChangeType:BBFetchedResultsChangeInsert];
         }];
     }
-
+    
     if ([[self delegate] respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)]) {
         for (BBFetchedResultsObjectChange *deletion in objectDeletions) {
             [[self delegate] controller:self didChangeObject:[deletion object] atIndexPath:[deletion priorIndexPath] forChangeType:BBFetchedResultsChangeDelete newIndexPath:nil];
@@ -481,10 +488,12 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
             [[self delegate] controller:self didChangeObject:[move object] atIndexPath:[move priorIndexPath] forChangeType:BBFetchedResultsChangeMove newIndexPath:[move indexPath]];
         }
     }
-
+    
     if ([[self delegate] respondsToSelector:@selector(controllerDidChangeContent:)]) {
         [[self delegate] controllerDidChangeContent:self];
     }
+    
+    return YES;
 }
 
 @end
