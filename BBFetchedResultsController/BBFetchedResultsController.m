@@ -238,17 +238,15 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         return NO;
     }
     
-    if (![[self delegate] respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)] &&
-        ![[self delegate] respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)]) {
-        // Delegate doesn't respond to fine-grained change callbacks.
-        if ([[self delegate] respondsToSelector:@selector(controllerWillChangeContent:)])
-            [[self delegate] controllerWillChangeContent:self];
+    if (![[self delegate] respondsToSelector:@selector(controllerWillChangeContent:)] &&
+        ![[self delegate] respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)] &&
+        ![[self delegate] respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)] &&
+        ![[self delegate] respondsToSelector:@selector(controllerDidChangeContent:)]) {
+        // Delegate doesn't respond to callbacks.
         [self setSections:sections];
         [self setSectionIndexTitles:nil];
         [self setFetchedObjects:fetchedObjects];
         [self setObjectIDs:objectIDs];
-        if ([[self delegate] respondsToSelector:@selector(controllerDidChangeContent:)])
-            [[self delegate] controllerDidChangeContent:self];
         return YES;
     }
     
