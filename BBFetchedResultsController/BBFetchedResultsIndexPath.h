@@ -3,11 +3,13 @@
 
 #import <Foundation/Foundation.h>
 
-@interface BBFetchedResultsIndexPath : NSObject
+@interface BBFetchedResultsIndexPath : NSIndexPath
 
-@property (nonatomic) NSUInteger section;
-@property (nonatomic) NSUInteger row;
+@property (nonatomic, readonly) NSInteger section;
+@property (nonatomic, readonly) NSInteger row;
+@property (nonatomic, readonly) NSInteger item;
 
 + (BBFetchedResultsIndexPath *)indexPathForRow:(NSInteger)row inSection:(NSInteger)section;
++ (BBFetchedResultsIndexPath *)indexPathForItem:(NSInteger)item inSection:(NSInteger)section;
 
 @end

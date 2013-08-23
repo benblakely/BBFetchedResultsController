@@ -6,32 +6,27 @@
 @implementation BBFetchedResultsIndexPath
 
 + (BBFetchedResultsIndexPath *)indexPathForRow:(NSInteger)row inSection:(NSInteger)section {
-    BBFetchedResultsIndexPath *indexPath = [self new];
-    [indexPath setRow:row];
-    [indexPath setSection:section];
+    NSUInteger indexes[] = {section, row};
+    BBFetchedResultsIndexPath *indexPath = [self indexPathWithIndexes:indexes length:2];
     return indexPath;
 }
 
-- (BOOL)isEqual:(id)object {
-    if (![object isKindOfClass:[BBFetchedResultsIndexPath class]]) return NO;
-    if ([(BBFetchedResultsIndexPath *)object section] != [self section]) return NO;
-    if ([(BBFetchedResultsIndexPath *)object row] != [self row]) return NO;
-    
-    return YES;
++ (BBFetchedResultsIndexPath *)indexPathForItem:(NSInteger)item inSection:(NSInteger)section {
+    return [self indexPathForRow:item inSection:section];
 }
 
-- (NSUInteger)hash {
-    NSUInteger result = 1;
-    NSUInteger prime = 31;
-    
-    result = prime * result + [self section];
-    result = prime * result + [self row];
-    
-    return result;
+- (NSInteger)section {
+    if ([self length] < 1) return NSNotFound;
+    return [self indexAtPosition:0];
 }
 
-- (NSString *)description {
-    return [NSString stringWithFormat:@"%@ section:%ld row:%ld", [super description], (unsigned long)[self section], (unsigned long)[self row]];
+- (NSInteger)row {
+    if ([self length] < 2) return NSNotFound;
+    return [self indexAtPosition:1];
+}
+
+- (NSInteger)item {
+    return [self row];
 }
 
 @end
