@@ -297,7 +297,7 @@ describe(@"BBFetchedResultsController", ^{
     });
     
     afterEach(^{
-        NSError *error = nil;
+        NSError *error;
         BOOL succeeded = [[NSFileManager defaultManager] removeItemAtURL:storeURL error:&error];
         [[theValue(succeeded) should] beTrue];
     });

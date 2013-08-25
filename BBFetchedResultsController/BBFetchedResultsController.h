@@ -24,7 +24,7 @@
 
 - (id)objectAtIndexPath:(BBFetchedResultsIndexPath *)indexPath;
 
--(BBFetchedResultsIndexPath *)indexPathForObject:(id)object;
+- (BBFetchedResultsIndexPath *)indexPathForObject:(id)object;
 
 - (NSString *)sectionIndexTitleForSectionName:(NSString *)sectionName;
 

@@ -63,11 +63,11 @@
     return [self indexPathForObjectID:[object objectID] objectIDs:[self objectIDs] sections:[self sections]];
 }
 
-- (BBFetchedResultsIndexPath *)indexPathForObjectID:(id)objectID objectIDs:(NSArray*)objectIDs sections:(NSArray *)sections {
+- (BBFetchedResultsIndexPath *)indexPathForObjectID:(id)objectID objectIDs:(NSArray *)objectIDs sections:(NSArray *)sections {
     NSUInteger index = [objectIDs indexOfObject:objectID];
     if (index == NSNotFound) return nil;
     
-    __block BBFetchedResultsIndexPath *indexPath = nil;
+    __block BBFetchedResultsIndexPath *indexPath;
     [sections enumerateObjectsUsingBlock:^(BBFetchedResultsSection *section, NSUInteger sectionIndex, BOOL *stop) {
         if (!NSLocationInRange(index, [section range])) return;
         NSUInteger row = index - [section range].location;
@@ -78,8 +78,9 @@
     return indexPath;
 }
 
-- (void)enumerateObjectsFromIDs:(NSArray*)objectIDs section:(BBFetchedResultsSection *)section block:(void (^)(NSManagedObject *object, NSUInteger idx, BOOL *stop))block {
-    for (NSUInteger index = [section range].location; index < [section range].location + [section range].length; ++index) {
+- (void)enumerateObjectsFromIDs:(NSArray *)objectIDs section:(BBFetchedResultsSection *)section block:(void (^)(NSManagedObject *object, NSUInteger idx, BOOL *stop))block {
+    NSUInteger lastIndex = [section range].location + [section range].length - 1;
+    for (NSUInteger index = [section range].location; index <= lastIndex; ++index) {
         id objectID = [objectIDs objectAtIndex:index];
         NSManagedObject *object = [[self managedObjectContext] objectWithID:objectID];
         NSUInteger indexInSection = index - [section range].location;
@@ -145,18 +146,22 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
 
 - (BOOL)updateDataWithUpdatedObjects:(NSSet *)updatedObjects error:(NSError **)outError {
     NSArray *sections, *fetchedObjects, *objectIDs;
-    NSError *error = nil;
+    NSError *error;
     BOOL succeeded = [self calculateSections:&sections fetchedObjects:&fetchedObjects objectIDs:&objectIDs error:&error];
     if (!succeeded) {
-        NSLog(@"Failed to fetch after context save: %@", error);
-        if (outError) *outError = error;
+        if (outError) {
+            *outError = error;
+        } else {
+            NSLog(@"Failed to fetch: %@", error);
+        }
         return NO;
     }
     
-    if (![[self delegate] respondsToSelector:@selector(controllerWillChangeContent:)] &&
-        ![[self delegate] respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)] &&
-        ![[self delegate] respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)] &&
-        ![[self delegate] respondsToSelector:@selector(controllerDidChangeContent:)]) {
+    id<BBFetchedResultsControllerDelegate> delegate = [self delegate];
+    if (![delegate respondsToSelector:@selector(controllerWillChangeContent:)] &&
+        ![delegate respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)] &&
+        ![delegate respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)] &&
+        ![delegate respondsToSelector:@selector(controllerDidChangeContent:)]) {
         // Delegate doesn't respond to callbacks.
         [self setSections:sections];
         [self setSectionIndexTitles:nil];
@@ -196,8 +201,8 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         return YES;
     }
     
-    if ([[self delegate] respondsToSelector:@selector(controllerWillChangeContent:)]) {
-        [[self delegate] controllerWillChangeContent:self];
+    if ([delegate respondsToSelector:@selector(controllerWillChangeContent:)]) {
+        [delegate controllerWillChangeContent:self];
     }
     
     [self setSections:sections];
@@ -205,41 +210,41 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
     [self setFetchedObjects:fetchedObjects];
     [self setObjectIDs:objectIDs];
     
-    if ([[self delegate] respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)]) {
+    if ([delegate respondsToSelector:@selector(controller:didChangeSection:atIndex:forChangeType:)]) {
         [deletedSections enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
             BBFetchedResultsSection *section = [priorSections objectAtIndex:idx];
-            [[self delegate] controller:self didChangeSection:section atIndex:idx forChangeType:BBFetchedResultsChangeDelete];
+            [delegate controller:self didChangeSection:section atIndex:idx forChangeType:BBFetchedResultsChangeDelete];
         }];
         [insertedSections enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
             BBFetchedResultsSection *section = [sections objectAtIndex:idx];
-            [[self delegate] controller:self didChangeSection:section atIndex:idx forChangeType:BBFetchedResultsChangeInsert];
+            [delegate controller:self didChangeSection:section atIndex:idx forChangeType:BBFetchedResultsChangeInsert];
         }];
     }
     
-    if ([[self delegate] respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)]) {
+    if ([delegate respondsToSelector:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:)]) {
         for (BBFetchedResultsObjectChange *deletion in objectDeletions) {
-            [[self delegate] controller:self didChangeObject:[deletion object] atIndexPath:[deletion priorIndexPath] forChangeType:BBFetchedResultsChangeDelete newIndexPath:nil];
+            [delegate controller:self didChangeObject:[deletion object] atIndexPath:[deletion priorIndexPath] forChangeType:BBFetchedResultsChangeDelete newIndexPath:nil];
         }
         for (BBFetchedResultsObjectChange *insertion in objectInsertions) {
-            [[self delegate] controller:self didChangeObject:[insertion object] atIndexPath:nil forChangeType:BBFetchedResultsChangeInsert newIndexPath:[insertion indexPath]];
+            [delegate controller:self didChangeObject:[insertion object] atIndexPath:nil forChangeType:BBFetchedResultsChangeInsert newIndexPath:[insertion indexPath]];
         }
         for (BBFetchedResultsObjectChange *update in objectUpdates) {
-            [[self delegate] controller:self didChangeObject:[update object] atIndexPath:[update indexPath] forChangeType:BBFetchedResultsChangeUpdate newIndexPath:nil];
+            [delegate controller:self didChangeObject:[update object] atIndexPath:[update indexPath] forChangeType:BBFetchedResultsChangeUpdate newIndexPath:nil];
         }
         for (BBFetchedResultsObjectChange *move in objectMoves) {
-            [[self delegate] controller:self didChangeObject:[move object] atIndexPath:[move priorIndexPath] forChangeType:BBFetchedResultsChangeMove newIndexPath:[move indexPath]];
+            [delegate controller:self didChangeObject:[move object] atIndexPath:[move priorIndexPath] forChangeType:BBFetchedResultsChangeMove newIndexPath:[move indexPath]];
         }
     }
     
-    if ([[self delegate] respondsToSelector:@selector(controllerDidChangeContent:)]) {
-        [[self delegate] controllerDidChangeContent:self];
+    if ([delegate respondsToSelector:@selector(controllerDidChangeContent:)]) {
+        [delegate controllerDidChangeContent:self];
     }
     
     return YES;
 }
 
 - (BOOL)calculateSections:(NSArray **)outSections fetchedObjects:(NSArray **)outFetchedObjects objectIDs:(NSArray **)outObjectIDs error:(NSError **)outError {
-    NSError *error = nil;
+    NSError *error;
     NSArray *fetchedObjects = [[self managedObjectContext] executeFetchRequest:[self fetchRequest] error:&error];
     if (error) {
         if (outError) *outError = error;
@@ -303,7 +308,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         if (limit > 0) {
             sectionCount = MIN(sectionCount, limit - fetchedObjectsCount);
         }
-        NSString* name = sectionInfo[[self sectionNameKeyPath]];
+        NSString *name = sectionInfo[[self sectionNameKeyPath]];
         BBFetchedResultsSection *section = [BBFetchedResultsSection new];
         [section setName:name];
         [section setRange:NSMakeRange(fetchedObjectsCount, sectionCount)];
@@ -505,7 +510,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         [sections enumerateObjectsUsingBlock:^(BBFetchedResultsSection *section, NSUInteger sectionIndex, BOOL *stopSection) {
             [self enumerateObjectsFromIDs:objectIDs section:section block:^(NSManagedObject *object, NSUInteger rowIndex, BOOL *stopRow) {
                 if ([object isFault]) return;
-                NSString *keyPath = nil;
+                NSString *keyPath;
                 for (keyPath in relationshipKeyPaths) {
                     NSManagedObject *relatedObject = [object valueForKeyPath:keyPath];
                     if (updatedObject == relatedObject) break;
