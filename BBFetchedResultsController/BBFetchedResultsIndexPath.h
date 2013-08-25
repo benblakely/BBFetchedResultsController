@@ -5,8 +5,8 @@
 
 @interface BBFetchedResultsIndexPath : NSObject
 
-@property (nonatomic) NSUInteger section;
-@property (nonatomic) NSUInteger row;
+@property (nonatomic) NSInteger section;
+@property (nonatomic) NSInteger row;
 
 + (BBFetchedResultsIndexPath *)indexPathForRow:(NSInteger)row inSection:(NSInteger)section;
 
