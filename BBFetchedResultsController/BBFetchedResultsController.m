@@ -79,6 +79,7 @@
 }
 
 - (void)enumerateObjectsFromIDs:(NSArray *)objectIDs section:(BBFetchedResultsSection *)section block:(void (^)(NSManagedObject *object, NSUInteger idx, BOOL *stop))block {
+    if ([section range].length == 0) return;
     NSUInteger lastIndex = [section range].location + [section range].length - 1;
     for (NSUInteger index = [section range].location; index <= lastIndex; ++index) {
         id objectID = [objectIDs objectAtIndex:index];
