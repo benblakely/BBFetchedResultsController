@@ -86,7 +86,90 @@ describe(@"BBFetchedResultsController", ^{
         [[theValue([managedObjectContext save:&error]) should] beTrue];
     });
     
-    context(@"Grouped", ^{
+    context(@"Without sections", ^{
+        __block BBFetchedResultsController *controller;
+        __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
+        beforeEach(^{
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+            [request setPredicate:[NSPredicate predicateWithFormat:@"completed == NO"]];
+            NSSortDescriptor *byTaskName = [NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES selector:@selector(caseInsensitiveCompare:)];
+            [request setSortDescriptors:@[byTaskName]];
+            [request setRelationshipKeyPathsForPrefetching:@[@"assignee"]];
+            [request setFetchBatchSize:10];
+            
+            controller = [[BBFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:managedObjectContext sectionNameKeyPath:nil];
+            delegate = [KWMock mockForProtocol:@protocol(BBFetchedResultsControllerDelegate)];
+            [controller setDelegate:delegate];
+            [[theValue([controller performFetch:nil]) should] beTrue];
+        });
+        
+        it(@"should have one section with all objects", ^{
+            [[[controller should] have:1] sections];
+            id section = [[controller sections] objectAtIndex:0];
+            [[theValue([section numberOfObjects]) should] equal:theValue(19)];
+        });
+        
+        it(@"should remove rows when items no longer meet predicate", ^{
+            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:1 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:2 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+            [request setPredicate:[NSPredicate predicateWithFormat:@"list.name == 'Vacation'"]];
+            NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
+            for (BBToDo *toDo in toDos) {
+                [toDo setCompletedValue:YES];
+            }
+            [managedObjectContext save:nil];
+        });
+        
+        it(@"should insert row when adding new item", ^{
+            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), nil, theValue(BBFetchedResultsChangeInsert), [BBFetchedResultsIndexPath indexPathForRow:10 inSection:0]];
+            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            
+            BBToDo *toDo = [BBToDo insertInManagedObjectContext:managedObjectContext];
+            [toDo setName:@"Make breakfast"];
+            [managedObjectContext save:nil];
+        });
+        
+        it(@"should move object when updating value affecting sort descriptor", ^{
+            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:0], theValue(BBFetchedResultsChangeMove), [BBFetchedResultsIndexPath indexPathForRow:9 inSection:0], nil];
+            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+            [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+            [request setFetchLimit:1];
+            BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+            [toDo setName:@"Lease car"];
+            
+            [managedObjectContext save:nil];
+        });
+        
+        it(@"should delete all rows but still have section when deleting all objects", ^{
+            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+            for (NSInteger row = 0; row <= 18; ++row) {
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:row inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+            }
+            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+            NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
+            for (BBToDo *toDo in toDos) {
+                [managedObjectContext deleteObject:toDo];
+            }
+            
+            [managedObjectContext save:nil];
+            
+            [[[controller should] have:1] sections];
+            id section = [[controller sections] objectAtIndex:0];
+            [[theValue([section numberOfObjects]) should] equal:theValue(0)];
+        });
+    });
+
+    context(@"With sections", ^{
         __block BBFetchedResultsController *controller;
         __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
         beforeEach(^{
@@ -241,7 +324,7 @@ describe(@"BBFetchedResultsController", ^{
         });
     });
     
-    context(@"Grouped with offset and limit", ^{
+    context(@"With sections, offset and limit", ^{
         __block BBFetchedResultsController *controller;
         __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
         beforeEach(^{
