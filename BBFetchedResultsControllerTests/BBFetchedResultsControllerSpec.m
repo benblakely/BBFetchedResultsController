@@ -167,6 +167,39 @@ describe(@"BBFetchedResultsController", ^{
             id section = [[controller sections] objectAtIndex:0];
             [[theValue([section numberOfObjects]) should] equal:theValue(0)];
         });
+        
+        it(@"should update row when updating item without affecting inclusion and order", ^{
+            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:0], theValue(BBFetchedResultsChangeUpdate), nil];
+            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+            [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+            [request setFetchLimit:1];
+            BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+            [toDo setName:@"Buy bike"];
+
+            [managedObjectContext save:nil];
+        });
+
+        it(@"should update row for new index path when sibling change affects order", ^{
+            [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:0 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+            [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:0], theValue(BBFetchedResultsChangeUpdate), [BBFetchedResultsIndexPath indexPathForRow:2 inSection:0]];
+            [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+            
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+            [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+            [request setFetchLimit:1];
+            BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+            [toDo setName:@"Buy bike"];
+            
+            [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Bake bread'"]];
+            BBToDo *siblingToDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+            [siblingToDo setCompletedValue:YES];
+             
+            [managedObjectContext save:nil];
+        });
     });
 
     context(@"With sections", ^{

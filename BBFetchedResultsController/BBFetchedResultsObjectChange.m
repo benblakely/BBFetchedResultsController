@@ -23,8 +23,8 @@
     return [self withObject:object priorIndexPath:priorIndexPath indexPath:nil changeType:BBFetchedResultsChangeDelete];
 }
 
-+ (BBFetchedResultsObjectChange *)updateWithObject:(NSManagedObject *)object indexPath:(BBFetchedResultsIndexPath *)indexPath {
-    return [self withObject:object priorIndexPath:nil indexPath:indexPath changeType:BBFetchedResultsChangeUpdate];
++ (BBFetchedResultsObjectChange *)updateWithObject:(NSManagedObject *)object priorIndexPath:(BBFetchedResultsIndexPath *)priorIndexPath indexPath:(BBFetchedResultsIndexPath *)indexPath {
+    return [self withObject:object priorIndexPath:priorIndexPath indexPath:[indexPath isEqual:priorIndexPath] ? nil : indexPath changeType:BBFetchedResultsChangeUpdate];
 }
 
 + (BBFetchedResultsObjectChange *)moveWithObject:(NSManagedObject *)object priorIndexPath:(BBFetchedResultsIndexPath *)priorIndexPath indexPath:(BBFetchedResultsIndexPath *)indexPath {

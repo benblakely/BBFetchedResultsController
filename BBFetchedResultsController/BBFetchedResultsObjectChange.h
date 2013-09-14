@@ -14,7 +14,7 @@
 
 + (BBFetchedResultsObjectChange *)deletionWithObject:(NSManagedObject *)object priorIndexPath:(BBFetchedResultsIndexPath *)indexPath;
 
-+ (BBFetchedResultsObjectChange *)updateWithObject:(NSManagedObject *)object indexPath:(BBFetchedResultsIndexPath *)indexPath;;
++ (BBFetchedResultsObjectChange *)updateWithObject:(NSManagedObject *)object priorIndexPath:(BBFetchedResultsIndexPath *)priorIndexPath indexPath:(BBFetchedResultsIndexPath *)indexPath;
 
 + (BBFetchedResultsObjectChange *)moveWithObject:(NSManagedObject *)object priorIndexPath:(BBFetchedResultsIndexPath *)sourceIndexPath indexPath:(BBFetchedResultsIndexPath *)destinationIndexPath;
 

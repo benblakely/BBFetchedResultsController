@@ -230,7 +230,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
             [delegate controller:self didChangeObject:[insertion object] atIndexPath:nil forChangeType:BBFetchedResultsChangeInsert newIndexPath:[insertion indexPath]];
         }
         for (BBFetchedResultsObjectChange *update in objectUpdates) {
-            [delegate controller:self didChangeObject:[update object] atIndexPath:[update indexPath] forChangeType:BBFetchedResultsChangeUpdate newIndexPath:nil];
+            [delegate controller:self didChangeObject:[update object] atIndexPath:[update priorIndexPath] forChangeType:BBFetchedResultsChangeUpdate newIndexPath:[update indexPath]];
         }
         for (BBFetchedResultsObjectChange *move in objectMoves) {
             [delegate controller:self didChangeObject:[move object] atIndexPath:[move priorIndexPath] forChangeType:BBFetchedResultsChangeMove newIndexPath:[move indexPath]];
@@ -501,7 +501,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
             if ([insertedSections containsIndex:[indexPath section]]) continue;
             BBFetchedResultsIndexPath *priorIndexPath = [self indexPathForObjectID:[updatedObject objectID] objectIDs:priorObjectIDs sections:priorSections];
             if (priorIndexPath && [deletedSections containsIndex:[priorIndexPath section]]) continue;
-            [objectUpdates addObject:[BBFetchedResultsObjectChange updateWithObject:updatedObject indexPath:indexPath]];
+            [objectUpdates addObject:[BBFetchedResultsObjectChange updateWithObject:updatedObject priorIndexPath:priorIndexPath indexPath:indexPath]];
             [alreadyHandledObjects addObject:updatedObject];
             continue;
         }
@@ -523,7 +523,7 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
                 if ([insertedSections containsIndex:[indexPath section]]) return;
                 BBFetchedResultsIndexPath *priorIndexPath = [self indexPathForObjectID:[object objectID] objectIDs:priorObjectIDs sections:priorSections];
                 if (priorIndexPath && [deletedSections containsIndex:[priorIndexPath section]]) return;
-                [objectUpdates addObject:[BBFetchedResultsObjectChange updateWithObject:object indexPath:indexPath]];
+                [objectUpdates addObject:[BBFetchedResultsObjectChange updateWithObject:object priorIndexPath:priorIndexPath indexPath:indexPath]];
                 [alreadyHandledObjects addObject:object];
                 *stopSection = YES;
             }];
