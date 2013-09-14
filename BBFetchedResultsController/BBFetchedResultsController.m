@@ -27,7 +27,11 @@
     [self setManagedObjectContext:context];
     [self setSectionNameKeyPath:sectionNameKeyPath];
     
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contextDidSave:) name:NSManagedObjectContextDidSaveNotification object:context];
+    NSManagedObjectContext *rootContext = context;
+    while ([rootContext parentContext]) {
+        rootContext = [rootContext parentContext];
+    }
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contextDidSave:) name:NSManagedObjectContextDidSaveNotification object:rootContext];
     
     return self;
 }
@@ -142,6 +146,16 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
 
 - (void)contextDidSave:(NSNotification *)notification {
     NSSet *updatedObjects = [[notification userInfo] objectForKey:NSUpdatedObjectsKey];
+    
+    if ([notification object] != [self managedObjectContext]) {
+        NSMutableSet *objectsInContext = [NSMutableSet setWithCapacity:[updatedObjects count]];
+        [updatedObjects enumerateObjectsUsingBlock:^(NSManagedObject *object, BOOL *stop) {
+            NSManagedObject *objectInContext = [[self managedObjectContext] objectWithID:[object objectID]];
+            [objectsInContext addObject:objectInContext];
+        }];
+        updatedObjects = objectsInContext;
+    }
+    
     [self updateDataWithUpdatedObjects:updatedObjects error:nil];
 }
 
