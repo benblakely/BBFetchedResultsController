@@ -51,6 +51,7 @@ describe(@"BBFetchedResultsController", ^{
     NSURL *storeURL = [directory URLByAppendingPathComponent:@"BBFetchedResultsController.sqlite"];
     __block NSPersistentStoreCoordinator *coordinator;
     __block NSManagedObjectContext *managedObjectContext;
+    __block BBFetchedResultsController *controller;
 
     NSArray *data = @[
         @{@"name": @"Get milk", @"list": @"Groceries", @"assignee": @"Me"},
@@ -90,7 +91,7 @@ describe(@"BBFetchedResultsController", ^{
         managedObjectContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
     });
 
-    context(@"Without nested contexts", ^{
+    context(@"With single context", ^{
         
         beforeEach(^{
             [managedObjectContext setPersistentStoreCoordinator:coordinator];
@@ -99,7 +100,6 @@ describe(@"BBFetchedResultsController", ^{
         });
         
         context(@"Without sections", ^{
-            __block BBFetchedResultsController *controller;
             __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
             beforeEach(^{
                 NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
@@ -215,7 +215,6 @@ describe(@"BBFetchedResultsController", ^{
         });
         
         context(@"With sections", ^{
-            __block BBFetchedResultsController *controller;
             __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
             beforeEach(^{
                 NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
@@ -374,7 +373,6 @@ describe(@"BBFetchedResultsController", ^{
         });
         
         context(@"With sections, offset and limit", ^{
-            __block BBFetchedResultsController *controller;
             __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
             beforeEach(^{
                 NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
@@ -442,7 +440,6 @@ describe(@"BBFetchedResultsController", ^{
         });
         
         context(@"Without sections", ^{
-            __block BBFetchedResultsController *controller;
             __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
             beforeEach(^{
                 NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
@@ -576,7 +573,6 @@ describe(@"BBFetchedResultsController", ^{
         });
         
         context(@"With sections, offset and limit", ^{
-            __block BBFetchedResultsController *controller;
             __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
             beforeEach(^{
                 NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
@@ -632,6 +628,224 @@ describe(@"BBFetchedResultsController", ^{
                 }];
             });
         });
+    });
+
+    context(@"With multipe, unnested contexts", ^{
+        
+        __block NSManagedObjectContext *privateContext;
+        __block id contextDidSaveObserver;
+        
+        beforeEach(^{
+            privateContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
+            [privateContext setPersistentStoreCoordinator:coordinator];
+            
+            [managedObjectContext setPersistentStoreCoordinator:coordinator];
+            importData(data, managedObjectContext);
+            [managedObjectContext save:nil];
+            
+            contextDidSaveObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSManagedObjectContextDidSaveNotification object:privateContext queue:nil usingBlock:^(NSNotification *notification) {
+                if (![NSThread isMainThread]) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [managedObjectContext mergeChangesFromContextDidSaveNotification:notification];
+                    });
+                    return;
+                }
+                [managedObjectContext mergeChangesFromContextDidSaveNotification:notification];
+            }];
+        });
+        
+        context(@"Without sections", ^{
+            __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
+            beforeEach(^{
+                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [request setPredicate:[NSPredicate predicateWithFormat:@"completed == NO"]];
+                NSSortDescriptor *byTaskName = [NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES selector:@selector(caseInsensitiveCompare:)];
+                [request setSortDescriptors:@[byTaskName]];
+                [request setRelationshipKeyPathsForPrefetching:@[@"assignee"]];
+                [request setFetchBatchSize:10];
+                
+                controller = [[BBFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:managedObjectContext sectionNameKeyPath:nil];
+                delegate = [KWMock mockForProtocol:@protocol(BBFetchedResultsControllerDelegate)];
+                [controller setDelegate:delegate];
+                [[theValue([controller performFetch:nil]) should] beTrue];
+            });
+            
+            it(@"should have one section with all objects", ^{
+                [[[controller should] have:1] sections];
+                id section = [[controller sections] objectAtIndex:0];
+                [[theValue([section numberOfObjects]) should] equal:theValue(19)];
+            });
+            
+            it(@"should remove rows when items no longer meet predicate", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:1 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:2 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                    [request setPredicate:[NSPredicate predicateWithFormat:@"list.name == 'Vacation'"]];
+                    NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
+                    for (BBToDo *toDo in toDos) {
+                        [toDo setCompletedValue:YES];
+                    }
+                    [privateContext save:nil];
+                }];
+            });
+            
+            it(@"should insert row when adding new item", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), nil, theValue(BBFetchedResultsChangeInsert), [BBFetchedResultsIndexPath indexPathForRow:10 inSection:0]];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    BBToDo *toDo = [BBToDo insertInManagedObjectContext:managedObjectContext];
+                    [toDo setName:@"Make breakfast"];
+                    [privateContext save:nil];
+                }];
+            });
+            
+            it(@"should move object when updating value affecting sort descriptor", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:0], theValue(BBFetchedResultsChangeMove), [BBFetchedResultsIndexPath indexPathForRow:9 inSection:0], nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                    [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+                    [request setFetchLimit:1];
+                    BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+                    [toDo setName:@"Lease car"];
+                    
+                    [privateContext save:nil];
+                }];
+            });
+            
+            it(@"should delete all rows but still have section when deleting all objects", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                for (NSInteger row = 0; row <= 18; ++row) {
+                    [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:row inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+                }
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                    NSArray *toDos = [managedObjectContext executeFetchRequest:request error:nil];
+                    for (BBToDo *toDo in toDos) {
+                        [managedObjectContext deleteObject:toDo];
+                    }
+                    
+                    [privateContext save:nil];
+                }];
+                
+                [[[controller should] have:1] sections];
+                id section = [[controller sections] objectAtIndex:0];
+                [[theValue([section numberOfObjects]) should] equal:theValue(0)];
+            });
+            
+            it(@"should update row when updating item without affecting inclusion and order", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:0], theValue(BBFetchedResultsChangeUpdate), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                    [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+                    [request setFetchLimit:1];
+                    BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+                    [toDo setName:@"Buy bike"];
+                    
+                    [privateContext save:nil];
+                }];
+            });
+            
+            it(@"should update row for new index path when sibling change affects order", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:0 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:3 inSection:0], theValue(BBFetchedResultsChangeUpdate), [BBFetchedResultsIndexPath indexPathForRow:2 inSection:0]];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                    [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Buy car'"]];
+                    [request setFetchLimit:1];
+                    BBToDo *toDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+                    [toDo setName:@"Buy bike"];
+                    
+                    [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Bake bread'"]];
+                    BBToDo *siblingToDo = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+                    [siblingToDo setCompletedValue:YES];
+                    
+                    [privateContext save:nil];
+                }];
+            });
+        });
+        
+        context(@"With sections, offset and limit", ^{
+            __block KWMock<BBFetchedResultsControllerDelegate> *delegate;
+            beforeEach(^{
+                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBToDo entityName]];
+                [request setPredicate:[NSPredicate predicateWithFormat:@"completed == NO"]];
+                NSSortDescriptor *byListName = [NSSortDescriptor sortDescriptorWithKey:@"list.name" ascending:YES selector:@selector(caseInsensitiveCompare:)];
+                NSSortDescriptor *byTaskName = [NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES selector:@selector(caseInsensitiveCompare:)];
+                [request setSortDescriptors:@[byListName, byTaskName]];
+                [request setRelationshipKeyPathsForPrefetching:@[@"assignee"]];
+                [request setFetchBatchSize:10];
+                [request setFetchOffset:1];
+                [request setFetchLimit:15];
+                
+                controller = [[BBFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:managedObjectContext sectionNameKeyPath:@"list.name"];
+                delegate = [KWMock mockForProtocol:@protocol(BBFetchedResultsControllerDelegate)];
+                [controller setDelegate:delegate];
+                [[theValue([controller performFetch:nil]) should] beTrue];
+            });
+            
+            it(@"should respect limit", ^{
+                [[[controller should] have:15] fetchedObjects];
+            });
+            
+            it(@"should group by section", ^{
+                [[[controller sections] should] have:3];
+                
+                id<BBFetchedResultsSectionInfo> party = [[controller sections] objectAtIndex:0];
+                [[[party name] should] equal:@"Party"];
+                [[theValue([party numberOfObjects]) should] equal:theValue(2)];
+                
+                id<BBFetchedResultsSectionInfo> personal = [[controller sections] objectAtIndex:1];
+                [[[personal name] should] equal:@"Personal"];
+                [[theValue([personal numberOfObjects]) should] equal:theValue(11)];
+                
+                id<BBFetchedResultsSectionInfo> vacation = [[controller sections] objectAtIndex:2];
+                [[[vacation name] should] equal:@"Vacation"];
+                [[theValue([vacation numberOfObjects]) should] equal:theValue(2)];
+            });
+            
+            it(@"should remove and insert sections when renaming section", ^{
+                [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
+                [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(2), theValue(BBFetchedResultsChangeInsert), nil];
+                [[delegate should] receive:@selector(controller:didChangeObject:atIndexPath:forChangeType:newIndexPath:) withArguments:controller, any(), [BBFetchedResultsIndexPath indexPathForRow:0 inSection:0], theValue(BBFetchedResultsChangeDelete), nil];
+                [[delegate should] receive:@selector(controllerDidChangeContent:) withArguments:controller, nil];
+                
+                [privateContext performBlockAndWait:^{
+                    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[BBList entityName]];
+                    [request setPredicate:[NSPredicate predicateWithFormat:@"name == 'Groceries'"]];
+                    [request setFetchLimit:1];
+                    BBList *list = [[managedObjectContext executeFetchRequest:request error:nil] lastObject];
+                    [list setName:@"Store"];
+                    
+                    [privateContext save:nil];
+                }];
+            });
+        });
+        
+        afterEach(^{
+            [[NSNotificationCenter defaultCenter] removeObserver:contextDidSaveObserver];
+        });
+    });
+    
+    afterEach(^{
+        // Workaround for dealloc never being called. See: https://github.com/allending/Kiwi/issues/254#issuecomment-19153886
+        [[NSNotificationCenter defaultCenter] removeObserver:controller];
     });
 });
 

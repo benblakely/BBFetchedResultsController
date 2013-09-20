@@ -27,11 +27,7 @@
     [self setManagedObjectContext:context];
     [self setSectionNameKeyPath:sectionNameKeyPath];
     
-    NSManagedObjectContext *rootContext = context;
-    while ([rootContext parentContext]) {
-        rootContext = [rootContext parentContext];
-    }
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contextDidSave:) name:NSManagedObjectContextDidSaveNotification object:rootContext];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contextDidSave:) name:NSManagedObjectContextDidSaveNotification object:nil];
     
     return self;
 }
@@ -145,9 +141,18 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
 }
 
 - (void)contextDidSave:(NSNotification *)notification {
+    NSManagedObjectContext *savedContext = [notification object];
+    
+    if ([savedContext parentContext]) return;
+    
+    if (savedContext != [self managedObjectContext] && ![[self managedObjectContext] parentContext]) {
+        [[self managedObjectContext] mergeChangesFromContextDidSaveNotification:notification];
+        [[self managedObjectContext] save:nil];
+    }
+    
     NSSet *updatedObjects = [[notification userInfo] objectForKey:NSUpdatedObjectsKey];
     
-    if ([notification object] != [self managedObjectContext]) {
+    if (savedContext != [self managedObjectContext]) {
         NSMutableSet *objectsInContext = [NSMutableSet setWithCapacity:[updatedObjects count]];
         [updatedObjects enumerateObjectsUsingBlock:^(NSManagedObject *object, BOOL *stop) {
             NSManagedObject *objectInContext = [[self managedObjectContext] objectWithID:[object objectID]];
@@ -266,14 +271,29 @@ NSString *NSStringFromBBFetchedResultsChangeType(BBFetchedResultsChangeType chan
         return NO;
     }
     
+    NSArray *propertiesToFetch = [[self fetchRequest] propertiesToFetch];
     NSFetchRequestResultType resultType = [[self fetchRequest] resultType];
     NSArray *relationshipKeyPaths = [[self fetchRequest] relationshipKeyPathsForPrefetching];
     
-    [[self fetchRequest] setResultType:NSManagedObjectIDResultType];
+    NSExpressionDescription *objectIDDescription = [NSExpressionDescription new];
+    [objectIDDescription setName:@"objectID"];
+    [objectIDDescription setExpression:[NSExpression expressionForEvaluatedObject]];
+    [objectIDDescription setExpressionResultType:NSObjectIDAttributeType];
+    
+    [[self fetchRequest] setPropertiesToFetch:@[objectIDDescription]];
+    [[self fetchRequest] setResultType:NSDictionaryResultType];
     [[self fetchRequest] setRelationshipKeyPathsForPrefetching:nil];
     
-    NSArray *objectIDs = [[self managedObjectContext] executeFetchRequest:[self fetchRequest] error:&error];
+    NSArray *results = [[self managedObjectContext] executeFetchRequest:[self fetchRequest] error:&error];
+    NSMutableArray *objectIDs = [NSMutableArray arrayWithCapacity:[results count]];
+    for (NSDictionary *result in results) {
+        NSManagedObjectID *objectID = [result objectForKey:@"objectID"];
+        NSManagedObject *objectInContext = [[self managedObjectContext] objectWithID:objectID];
+        NSManagedObjectID *objectIDInContext = [objectInContext objectID];
+        [objectIDs addObject:objectIDInContext];
+    }
     
+    [[self fetchRequest] setPropertiesToFetch:propertiesToFetch];
     [[self fetchRequest] setResultType:resultType];
     [[self fetchRequest] setRelationshipKeyPathsForPrefetching:relationshipKeyPaths];
     if (error) {
