@@ -236,6 +236,10 @@ describe(@"BBFetchedResultsController", ^{
                     [[theValue([controller performFetch:nil]) should] beTrue];
                 });
                 
+                it(@"should return section index titles", ^{
+                    [[[controller sectionIndexTitles] should] equal:@[@"G", @"P", @"P", @"V", @"W"]];
+                });
+                
                 it(@"should remove section when deleting all items in section", ^{
                     [[delegate should] receive:@selector(controllerWillChangeContent:) withArguments:controller, nil];
                     [[delegate should] receive:@selector(controller:didChangeSection:atIndex:forChangeType:) withArguments:controller, any(), theValue(3), theValue(BBFetchedResultsChangeDelete), nil];

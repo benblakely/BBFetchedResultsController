@@ -108,7 +108,7 @@
 
 - (NSString *)sectionIndexTitleForSectionName:(NSString *)sectionName {
     if ([sectionName length] == 0) return @"";
-    return [[sectionName substringToIndex:0] capitalizedString];
+    return [[sectionName substringToIndex:1] capitalizedString];
 }
 
 - (NSInteger)sectionForSectionIndexTitle:(NSString *)title atIndex:(NSInteger)sectionIndex {
