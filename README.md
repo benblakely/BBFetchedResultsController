@@ -6,7 +6,7 @@ Apple’s NSFetchedResultsController is great, but has some shortcomings:
 
 - Changes to relationship objects affecting the order or predicate (i.e. addition or removal) aren’t detected.
 - The fetch limit isn’t respected after updates.
-- Reports conflicting section/object updates when objects move to newly-created sections or move from newly deleted-sections.
+- Conflicting section/object updates are reported when objects move to newly created sections or move from newly deleted sections.
 - Implicit object moves are unnecessarily reported (e.g. deleting one object and changing the ordinal on all subsequent objects turn up as a single row deletion and multiple moves as opposed to updates).
 - Changes to relationship objects specified in relationshipKeypathsForPrefetching aren’t detected.
 - Changing the sort descriptors and/or predicate and then performing a fetch doesn’t result in delegate calls.
